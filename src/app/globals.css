@@ -1,0 +1,73 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans:
+    "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+    sans-serif;
+  --font-mono:
+    "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Menlo, Consolas,
+    monospace;
+  color-scheme: dark;
+}
+
+@layer base {
+  html {
+    @apply bg-ink-950;
+  }
+
+  body {
+    @apply min-h-dvh bg-ink-950 text-slate-100;
+  }
+
+  ::selection {
+    @apply bg-neon-green/30 text-white;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, rgb(148 163 184 / 0.055) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(148 163 184 / 0.055) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse at center, black 20%, transparent 78%);
+  }
+
+  .scrollbar-terminal {
+    scrollbar-color: rgb(124 255 107 / 0.25) transparent;
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar-thumb {
+    background-clip: content-box;
+    background-color: rgb(124 255 107 / 0.2);
+    border: 2px solid transparent;
+    border-radius: 9999px;
+  }
+
+  .scrollbar-terminal::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(124 255 107 / 0.35);
+  }
+}
