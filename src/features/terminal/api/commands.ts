@@ -1,6 +1,5 @@
 import { CAREER_MILESTONES, PROFILE } from "@/lib/content/profile";
-import { QUESTS, findQuestByInput, getQuestById } from "@/lib/content/quests";
-import { QUEST_SCORE } from "@/store/use-game-store";
+import { findQuestByInput, getQuestById } from "@/lib/content/quests";
 import type {
   CommandSnapshot,
   QuestId,
@@ -9,11 +8,10 @@ import type {
 } from "@/types/game";
 
 export interface CommandContext {
-  setActiveLevel: (questId: QuestId) => void;
-  completeQuest: (questId: QuestId) => void;
+  startQuest: (questId: QuestId) => void;
   openHireDialog: () => void;
   clearTerminal: () => void;
-  activateFastPass: () => void;
+  skipToOffer: () => void;
   getSnapshot: () => CommandSnapshot;
 }
 
@@ -41,11 +39,13 @@ function formatBulletList(items: readonly string[]): string {
   return items.map((item) => `  - ${item}`).join("\n");
 }
 
-function formatQuestDirectory(): string {
-  return QUESTS.map(
-    (quest) =>
-      `  ${String(quest.level).padStart(2, "0")}  ${quest.title} — ${quest.company} (${quest.period})`,
-  ).join("\n");
+function formatQuestDirectory(ids: readonly QuestId[]): string {
+  return ids
+    .map((id, index) => {
+      const quest = getQuestById(id);
+      return `  ${String(index + 1).padStart(2, "0")}  ${quest.title} — ${quest.company} (${quest.period})`;
+    })
+    .join("\n");
 }
 
 const helpCommand: CommandDefinition = {
@@ -101,8 +101,8 @@ const inspectCommand: CommandDefinition = {
   name: "inspect",
   aliases: ["profile", "cv"],
   usage: "inspect [alex | --experience | --quests]",
-  description: "Summarise the CV, career timeline, or quest directory.",
-  run: (args) => {
+  description: "Summarise the CV, career timeline, or scenario directory.",
+  run: (args, context) => {
     const scope = args[0]?.toLowerCase();
     const mostRecent = CAREER_MILESTONES.at(0);
 
@@ -128,14 +128,16 @@ const inspectCommand: CommandDefinition = {
     }
 
     if (scope === "--quests" || scope === "-q") {
+      const session = context.getSnapshot().sessionQuestIds;
+
       return {
         entries: [
           line(
             "output",
-            "QUEST DIRECTORY\nEach mission maps to a real enterprise milestone.",
+            "SCENARIO DIRECTORY\nEach scenario maps to a real enterprise milestone.",
           ),
-          line("output", formatQuestDirectory(), {
-            questIds: QUESTS.map((quest) => quest.id),
+          line("output", formatQuestDirectory(session), {
+            questIds: session,
           }),
         ],
       };
@@ -174,7 +176,7 @@ const inspectCommand: CommandDefinition = {
             recentLine,
             "",
             'Run "inspect --experience" for the full timeline.',
-            'Run "inspect --quests" to list the playable missions.',
+            'Run "inspect --quests" to list the playable scenarios.',
           ].join("\n"),
         ),
       ],
@@ -203,8 +205,9 @@ const startQuestCommand: CommandDefinition = {
   name: "start-quest",
   aliases: ["quest"],
   usage: "start-quest [1 | 2 | 3]",
-  description: "Launch a quest briefing in Mission Control.",
+  description: "Launch a scenario briefing in Mission Control.",
   run: (args, context) => {
+    const session = context.getSnapshot().sessionQuestIds;
     const target = args[0];
 
     if (!target) {
@@ -212,35 +215,47 @@ const startQuestCommand: CommandDefinition = {
         entries: [
           line(
             "output",
-            'QUEST DIRECTORY\nSelect a mission below, or run "start-quest 1" through "start-quest 3".',
+            `SCENARIO DIRECTORY\nSelect a scenario below, or run "start-quest 1" through "start-quest ${session.length}".`,
           ),
-          line("output", formatQuestDirectory(), {
-            questIds: QUESTS.map((quest) => quest.id),
+          line("output", formatQuestDirectory(session), {
+            questIds: session,
           }),
         ],
       };
     }
 
-    const quest = findQuestByInput(target);
+    const asIndex = Number.parseInt(target, 10);
+    let questId: QuestId | undefined;
 
-    if (!quest) {
+    if (Number.isInteger(asIndex) && asIndex >= 1 && asIndex <= session.length) {
+      questId = session[asIndex - 1];
+    } else {
+      const found = findQuestByInput(target);
+      questId = found && session.includes(found.id) ? found.id : undefined;
+    }
+
+    if (!questId) {
       return {
         entries: [
           line(
             "error",
-            `No quest matches "${target}". Run "start-quest" to list the available missions.`,
+            `No scenario matches "${target}". Run "start-quest" to list this session's scenarios.`,
           ),
         ],
       };
     }
 
-    context.setActiveLevel(quest.id);
+    const quest = getQuestById(questId);
+    const sessionIndex = session.indexOf(questId);
+    const position = sessionIndex >= 0 ? sessionIndex + 1 : quest.level;
+
+    context.startQuest(questId);
 
     return {
       entries: [
         line(
           "success",
-          `Level ${quest.level} online — ${quest.title}. Mission Control updated.`,
+          `Scenario ${position} online — ${quest.title}. Mission Control updated.`,
         ),
         line(
           "output",
@@ -248,84 +263,20 @@ const startQuestCommand: CommandDefinition = {
             `${quest.company} · ${quest.period}`,
             `${quest.role} · ${quest.domain}`,
             "",
-            "CHALLENGE",
-            quest.challenge,
+            "SITUATION",
+            quest.scenario.scenario,
             "",
-            "UNLOCK",
-            formatBulletList(quest.achievements),
+            "YOUR CALL",
+            quest.scenario.ask,
+            "",
+            "OUTCOME",
+            quest.scenario.reveal.outcome,
+            "",
+            "PROOF",
+            quest.proof,
           ].join("\n"),
         ),
         line("output", "MISSION STACK", { badges: quest.stack }),
-      ],
-    };
-  },
-};
-
-const completeQuestCommand: CommandDefinition = {
-  name: "complete-quest",
-  aliases: ["complete", "finish"],
-  usage: "complete-quest [1 | 2 | 3]",
-  description: "Resolve a quest briefing and claim its XP.",
-  run: (args, context) => {
-    const snapshot = context.getSnapshot();
-    const target = args[0];
-    const quest = target
-      ? findQuestByInput(target)
-      : snapshot.activeLevel
-        ? getQuestById(snapshot.activeLevel)
-        : null;
-
-    if (!quest) {
-      if (target) {
-        return {
-          entries: [
-            line(
-              "error",
-              `No quest matches "${target}". Run "start-quest" to list the available missions.`,
-            ),
-          ],
-        };
-      }
-
-      return {
-        entries: [
-          line(
-            "error",
-            'No active quest. Run "start-quest 1" first, or pass a level: "complete-quest 1".',
-          ),
-        ],
-      };
-    }
-
-    if (snapshot.completedQuests[quest.id]) {
-      return {
-        entries: [
-          line(
-            "warning",
-            `Level ${quest.level} — ${quest.title} is already complete.`,
-          ),
-        ],
-      };
-    }
-
-    context.completeQuest(quest.id);
-
-    const remainingQuests = QUESTS.filter(
-      (candidate) =>
-        candidate.id !== quest.id && !snapshot.completedQuests[candidate.id],
-    );
-    const nextQuest = remainingQuests.at(0);
-    const nextHint = nextQuest
-      ? `Run "start-quest ${nextQuest.level}" for the next mission, or "status" to check progress.`
-      : 'All missions cleared. Run "hire" to open the recruiter contact card.';
-
-    return {
-      entries: [
-        line(
-          "success",
-          `+${QUEST_SCORE} XP — Level ${quest.level} ${quest.title} complete.`,
-        ),
-        line("output", nextHint),
       ],
     };
   },
@@ -363,22 +314,25 @@ const statusCommand: CommandDefinition = {
   name: "status",
   aliases: ["whoami"],
   usage: "status",
-  description: "Show score, quest progress, and fast-pass state.",
+  description: "Show score, scenario progress, and view state.",
   run: (_args, context) => {
     const snapshot = context.getSnapshot();
-    const completedCount = QUESTS.filter(
-      (quest) => snapshot.completedQuests[quest.id],
+    const session = snapshot.sessionQuestIds;
+    const completedCount = session.filter(
+      (questId) => snapshot.completedQuests[questId],
     ).length;
     const activeQuest = snapshot.activeLevel
       ? getQuestById(snapshot.activeLevel)
       : null;
     const activeLine = activeQuest
-      ? `Level ${activeQuest.level} — ${activeQuest.title}`
+      ? activeQuest.title
       : 'none (run "start-quest")';
-    const checklist = QUESTS.map(
-      (quest) =>
-        `  ${snapshot.completedQuests[quest.id] ? "[x]" : "[ ]"} ${quest.level}. ${quest.title}`,
-    ).join("\n");
+    const checklist = session
+      .map((questId, index) => {
+        const quest = getQuestById(questId);
+        return `  ${snapshot.completedQuests[questId] ? "[x]" : "[ ]"} ${index + 1}. ${quest.title}`;
+      })
+      .join("\n");
 
     return {
       entries: [
@@ -387,9 +341,9 @@ const statusCommand: CommandDefinition = {
           [
             "RUN STATUS",
             `Score:      ${snapshot.score} XP`,
-            `Quests:     ${completedCount}/${QUESTS.length} complete`,
+            `Scenarios:  ${completedCount}/${session.length} reviewed`,
             `Active:     ${activeLine}`,
-            `Fast-pass:  ${snapshot.fastPassEnabled ? "ACTIVE" : "STANDBY"}`,
+            `View:       ${snapshot.view === "offer" ? "profile / pitch" : "screening"}`,
           ].join("\n"),
         ),
         line("output", checklist),
@@ -398,23 +352,23 @@ const statusCommand: CommandDefinition = {
   },
 };
 
-const fastPassCommand: CommandDefinition = {
-  name: "fast-pass",
-  aliases: ["fastpass"],
-  usage: "fast-pass",
-  description: "Resolve every quest at full XP (recruiter shortcut).",
+const skipCommand: CommandDefinition = {
+  name: "skip",
+  aliases: ["fast-pass", "fastpass", "offer"],
+  usage: "skip",
+  description: "Skip straight to the profile and hiring contact (recruiter shortcut).",
   run: (_args, context) => {
-    context.activateFastPass();
+    context.skipToOffer();
 
     return {
       entries: [
         line(
           "warning",
-          "RECRUITER FAST-PASS engaged. All quest briefings resolved at full XP.",
+          "Recruiter shortcut engaged. Jumping straight to the profile and offer screen.",
         ),
         line(
           "success",
-          "Portfolio summary unlocked. Run \"hire\" to open the contact card.",
+          "Full profile and hiring contact unlocked. Run \"hire\" for direct channels.",
         ),
       ],
     };
@@ -442,10 +396,9 @@ export const COMMANDS: readonly CommandDefinition[] = [
   inspectCommand,
   skillsCommand,
   startQuestCommand,
-  completeQuestCommand,
   hireCommand,
   statusCommand,
-  fastPassCommand,
+  skipCommand,
   clearCommand,
 ];
 

@@ -1,134 +1,290 @@
 import { create } from "zustand";
 
+import { pickSessionQuestIds } from "@/lib/content/quests";
 import {
   QUEST_IDS,
+  SESSION_SIZE,
+  type GameView,
+  type MissionStep,
   type QuestId,
+  type QuestStatus,
   type TerminalEntry,
   type TerminalEntryDraft,
 } from "@/types/game";
 
 export const QUEST_SCORE = 100;
 
+const DEFAULT_SESSION_IDS: QuestId[] = QUEST_IDS.slice(0, SESSION_SIZE);
+
 const INITIAL_TERMINAL_LOG = [
   {
     id: 1,
     tone: "system",
-    text: "AI-NATIVE DEVELOPER QUEST v1.0.0",
+    text: "AI-NATIVE DEVELOPER QUEST v3.1",
   },
   {
     id: 2,
     tone: "system",
-    text: "Boot sequence complete. Candidate profile loaded: Oleksandr Obramenko.",
+    text: "Candidate profile loaded: Oleksandr Obramenko. Screening session ready.",
   },
   {
     id: 3,
     tone: "output",
-    text: 'Type "help" for the command list, or tap a prompt pill to begin.',
+    text: "Review the three scenarios to unlock the full profile and a ready-to-forward pitch.",
   },
 ] as const satisfies readonly TerminalEntry[];
 
-function createCompletionMap(value: boolean): Record<QuestId, boolean> {
-  return QUEST_IDS.reduce<Record<QuestId, boolean>>(
-    (completion, questId) => {
-      completion[questId] = value;
-      return completion;
-    },
-    {} as Record<QuestId, boolean>,
-  );
+function createCompletionMap(
+  ids: readonly QuestId[],
+  value: boolean,
+): Record<QuestId, boolean> {
+  const completion = {} as Record<QuestId, boolean>;
+
+  for (const questId of QUEST_IDS) {
+    completion[questId] = ids.includes(questId) ? value : false;
+  }
+
+  return completion;
+}
+
+function deriveQuestStatus(
+  ids: readonly QuestId[],
+  completed: Readonly<Record<QuestId, boolean>>,
+  activeLevel: QuestId | null,
+): Record<QuestId, QuestStatus> {
+  const status = {} as Record<QuestId, QuestStatus>;
+
+  for (const questId of QUEST_IDS) {
+    status[questId] = "locked";
+  }
+
+  let previousReviewed = true;
+
+  for (const questId of ids) {
+    if (completed[questId]) {
+      status[questId] = "solved";
+    } else if (activeLevel === questId) {
+      status[questId] = "active";
+    } else if (previousReviewed) {
+      status[questId] = "available";
+    } else {
+      status[questId] = "locked";
+    }
+
+    previousReviewed = previousReviewed && completed[questId];
+  }
+
+  return status;
+}
+
+function firstUnreviewed(
+  ids: readonly QuestId[],
+  completed: Readonly<Record<QuestId, boolean>>,
+): QuestId | null {
+  return ids.find((questId) => !completed[questId]) ?? null;
 }
 
 function createInitialTerminalLog(): TerminalEntry[] {
   return INITIAL_TERMINAL_LOG.map((entry) => ({ ...entry }));
 }
 
+function buildSessionState(sessionQuestIds: QuestId[]) {
+  const completedQuests = createCompletionMap(sessionQuestIds, false);
+  const activeLevel = sessionQuestIds[0] ?? null;
+
+  return {
+    view: "play" as GameView,
+    sessionQuestIds,
+    activeLevel,
+    step: "scenario" as MissionStep,
+    completedQuests,
+    questStatus: deriveQuestStatus(sessionQuestIds, completedQuests, activeLevel),
+    unlockedProofs: [] as QuestId[],
+    selectedOptionId: null,
+    score: 0,
+    consoleOpen: false,
+    terminalLog: createInitialTerminalLog(),
+    nextEntryId: INITIAL_TERMINAL_LOG.length + 1,
+  };
+}
+
 export interface GameStore {
+  view: GameView;
+  sessionQuestIds: QuestId[];
   activeLevel: QuestId | null;
+  step: MissionStep;
   completedQuests: Record<QuestId, boolean>;
-  terminalLog: TerminalEntry[];
+  questStatus: Record<QuestId, QuestStatus>;
+  unlockedProofs: QuestId[];
+  selectedOptionId: string | null;
   score: number;
-  fastPassEnabled: boolean;
+  consoleOpen: boolean;
+  terminalLog: TerminalEntry[];
   nextEntryId: number;
-  setActiveLevel: (questId: QuestId | null) => void;
-  completeQuest: (questId: QuestId) => void;
-  completeAllQuests: () => void;
-  activateFastPass: () => void;
-  resetGame: () => void;
+
+  startQuest: (questId: QuestId) => void;
+  beginCall: () => void;
+  selectOption: (optionId: string) => void;
+  submitCall: () => void;
+  nextScenario: () => void;
+  skipToOffer: () => void;
+  reviewMissions: () => void;
+  shuffleSession: () => void;
+  toggleConsole: () => void;
   appendTerminalEntries: (entries: readonly TerminalEntryDraft[]) => void;
   clearTerminal: () => void;
+  resetGame: () => void;
 }
 
 export const useGameStore = create<GameStore>()((set) => ({
-  activeLevel: null,
-  completedQuests: createCompletionMap(false),
-  terminalLog: createInitialTerminalLog(),
-  score: 0,
-  fastPassEnabled: false,
-  nextEntryId: INITIAL_TERMINAL_LOG.length + 1,
+  ...buildSessionState(DEFAULT_SESSION_IDS),
 
-  setActiveLevel: (questId) => {
-    set({ activeLevel: questId });
-  },
-
-  completeQuest: (questId) => {
+  startQuest: (questId) => {
     set((state) => {
-      if (state.completedQuests[questId]) {
+      if (state.questStatus[questId] === "locked") {
         return state;
       }
 
       return {
-        completedQuests: {
-          ...state.completedQuests,
-          [questId]: true,
-        },
-        score: state.score + QUEST_SCORE,
-        activeLevel:
-          state.activeLevel === questId ? null : state.activeLevel,
+        view: "play",
+        activeLevel: questId,
+        step: "scenario",
+        selectedOptionId: null,
+        questStatus: deriveQuestStatus(
+          state.sessionQuestIds,
+          state.completedQuests,
+          questId,
+        ),
       };
     });
   },
 
-  completeAllQuests: () => {
+  beginCall: () => {
     set((state) => {
-      const remainingQuests = QUEST_IDS.filter(
-        (questId) => !state.completedQuests[questId],
-      );
-
-      if (remainingQuests.length === 0) {
+      if (!state.activeLevel) {
         return state;
       }
 
-      return {
-        completedQuests: createCompletionMap(true),
-        score: state.score + remainingQuests.length * QUEST_SCORE,
-        activeLevel: null,
-      };
+      return { step: "call", selectedOptionId: null };
     });
   },
 
-  activateFastPass: () => {
+  selectOption: (optionId) => {
+    set({ selectedOptionId: optionId });
+  },
+
+  submitCall: () => {
     set((state) => {
-      const remainingQuests = QUEST_IDS.filter(
-        (questId) => !state.completedQuests[questId],
-      );
+      const { activeLevel, selectedOptionId } = state;
+
+      if (!activeLevel || !selectedOptionId) {
+        return state;
+      }
+
+      const alreadyReviewed = state.completedQuests[activeLevel];
+      const completedQuests = alreadyReviewed
+        ? state.completedQuests
+        : { ...state.completedQuests, [activeLevel]: true };
+      const unlockedProofs =
+        alreadyReviewed || state.unlockedProofs.includes(activeLevel)
+          ? state.unlockedProofs
+          : [...state.unlockedProofs, activeLevel];
 
       return {
-        fastPassEnabled: true,
-        completedQuests: createCompletionMap(true),
-        score: state.score + remainingQuests.length * QUEST_SCORE,
-        activeLevel: null,
+        step: "reveal",
+        completedQuests,
+        unlockedProofs,
+        score: alreadyReviewed ? state.score : state.score + QUEST_SCORE,
+        questStatus: deriveQuestStatus(
+          state.sessionQuestIds,
+          completedQuests,
+          activeLevel,
+        ),
       };
     });
   },
 
-  resetGame: () => {
-    set({
-      activeLevel: null,
-      completedQuests: createCompletionMap(false),
-      terminalLog: createInitialTerminalLog(),
-      score: 0,
-      fastPassEnabled: false,
-      nextEntryId: INITIAL_TERMINAL_LOG.length + 1,
+  nextScenario: () => {
+    set((state) => {
+      const next = firstUnreviewed(state.sessionQuestIds, state.completedQuests);
+
+      if (!next) {
+        return {
+          view: "offer",
+          activeLevel: null,
+          step: "scenario",
+          selectedOptionId: null,
+          questStatus: deriveQuestStatus(
+            state.sessionQuestIds,
+            state.completedQuests,
+            null,
+          ),
+        };
+      }
+
+      return {
+        view: "play",
+        activeLevel: next,
+        step: "scenario",
+        selectedOptionId: null,
+        questStatus: deriveQuestStatus(
+          state.sessionQuestIds,
+          state.completedQuests,
+          next,
+        ),
+      };
     });
+  },
+
+  skipToOffer: () => {
+    set((state) => {
+      const completedQuests = createCompletionMap(state.sessionQuestIds, true);
+      const score = state.sessionQuestIds.length * QUEST_SCORE;
+
+      return {
+        view: "offer",
+        activeLevel: null,
+        step: "scenario",
+        selectedOptionId: null,
+        completedQuests,
+        questStatus: deriveQuestStatus(
+          state.sessionQuestIds,
+          completedQuests,
+          null,
+        ),
+        unlockedProofs: [...state.sessionQuestIds],
+        score: Math.max(state.score, score),
+      };
+    });
+  },
+
+  reviewMissions: () => {
+    set((state) => {
+      const target =
+        firstUnreviewed(state.sessionQuestIds, state.completedQuests) ??
+        state.sessionQuestIds[0] ??
+        null;
+
+      return {
+        view: "play",
+        activeLevel: target,
+        step: "scenario",
+        selectedOptionId: null,
+        questStatus: deriveQuestStatus(
+          state.sessionQuestIds,
+          state.completedQuests,
+          target,
+        ),
+      };
+    });
+  },
+
+  shuffleSession: () => {
+    set(() => buildSessionState(pickSessionQuestIds()));
+  },
+
+  toggleConsole: () => {
+    set((state) => ({ consoleOpen: !state.consoleOpen }));
   },
 
   appendTerminalEntries: (entries) => {
@@ -156,5 +312,9 @@ export const useGameStore = create<GameStore>()((set) => ({
 
   clearTerminal: () => {
     set({ terminalLog: [] });
+  },
+
+  resetGame: () => {
+    set(() => buildSessionState(pickSessionQuestIds()));
   },
 }));

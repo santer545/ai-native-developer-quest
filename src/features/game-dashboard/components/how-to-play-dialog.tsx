@@ -8,24 +8,24 @@ interface HowToPlayDialogProps {
 
 const STEPS = [
   {
-    title: "Start a mission",
-    body: "Pick a quest card in Mission Control, or run:",
-    command: "start-quest 1",
+    title: "Read the scenario",
+    body: "A real work situation from Oleksandr's career, written in plain language.",
+    hint: "No jargon · no typing",
   },
   {
-    title: "Complete the briefing",
-    body: "Claim the mission XP from the card or run:",
-    command: "complete-quest",
+    title: "Make your call",
+    body: "Pick the priority you would choose as the hiring manager. There are no wrong answers.",
+    hint: "3 options · one click",
   },
   {
-    title: "Clear all three levels",
-    body: "Repeat for quests 2 and 3, then check your progress with:",
-    command: "status",
+    title: "See how he answered",
+    body: "The reveal shows his approach, the outcome, and what it says about him.",
+    hint: "Optional technical detail",
   },
   {
-    title: "Open recruiter contact",
-    body: "Open the contact card whenever you are ready:",
-    command: "hire",
+    title: "Take the pitch",
+    body: "Finish to unlock the full profile and a copy-ready summary you can forward to a hiring manager.",
+    hint: "Email · CV · LinkedIn",
   },
 ] as const;
 
@@ -35,7 +35,7 @@ export function HowToPlayDialog({ open, onClose }: HowToPlayDialogProps) {
       open={open}
       onClose={onClose}
       title="How to play"
-      description="Complete all three mission briefings to finish the run, then open the recruiter contact card."
+      description="Review three scenarios, make your calls, and unlock the profile plus a forwardable pitch. No typing required."
     >
       <ol className="space-y-4">
         {STEPS.map((step, index) => (
@@ -50,9 +50,9 @@ export function HowToPlayDialog({ open, onClose }: HowToPlayDialogProps) {
               <p className="mt-1 text-xs leading-5 text-slate-400">
                 {step.body}
               </p>
-              <code className="mt-2 inline-block rounded border border-neon-green/20 bg-neon-green/[0.06] px-2 py-1 font-mono text-xs text-neon-green">
-                {step.command}
-              </code>
+              <span className="mt-2 inline-block rounded border border-neon-green/20 bg-neon-green/[0.06] px-2 py-1 font-mono text-xs text-neon-green">
+                {step.hint}
+              </span>
             </div>
           </li>
         ))}
@@ -60,12 +60,12 @@ export function HowToPlayDialog({ open, onClose }: HowToPlayDialogProps) {
 
       <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.03] p-3">
         <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">
-          Recruiter shortcut
+          In a hurry?
         </p>
         <p className="mt-1 text-xs leading-5 text-slate-400">
-          In a hurry? Run{" "}
-          <code className="font-mono text-neon-amber">fast-pass</code> to resolve
-          every quest at full XP instantly.
+          Use{" "}
+          <span className="font-mono text-neon-amber">Skip to profile</span> in
+          the top-right menu to jump straight to the contact card.
         </p>
       </div>
 

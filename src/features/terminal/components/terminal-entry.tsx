@@ -37,7 +37,7 @@ export function TerminalEntryView({
 
   if (entry.tone === "command") {
     return (
-      <div className="flex items-start gap-2 font-mono text-[13px] leading-6">
+      <div className="flex items-start gap-2 font-terminal text-[13px] leading-6">
         <span className="select-none text-neon-green" aria-hidden="true">
           $
         </span>
@@ -52,7 +52,7 @@ export function TerminalEntryView({
 
   return (
     <div className="animate-fade-in">
-      <div className="flex items-start gap-2 font-mono text-[13px] leading-6">
+      <div className="flex items-start gap-2 font-terminal text-[13px] leading-6">
         <span
           className={cn(
             "mt-0.5 select-none text-[11px] font-semibold",
@@ -97,8 +97,7 @@ export function TerminalEntryView({
                 className="flex flex-col gap-2 rounded-lg border border-white/10 bg-white/[0.025] p-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div className="min-w-0">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-slate-500">
-                    Lvl {String(quest.level).padStart(2, "0")} ·{" "}
+                  <p className="font-terminal text-[10px] uppercase tracking-[0.16em] text-slate-500">
                     {quest.company}
                   </p>
                   <p className="truncate text-sm text-slate-200">
@@ -111,7 +110,7 @@ export function TerminalEntryView({
                   onClick={() => onActivateQuest(questId)}
                   className="shrink-0"
                 >
-                  Activate
+                  Open
                 </Button>
               </div>
             );

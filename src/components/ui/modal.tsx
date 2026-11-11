@@ -86,7 +86,7 @@ export function Modal({
             <div>
               <h2
                 id={titleId}
-                className="font-mono text-sm font-semibold uppercase tracking-[0.18em] text-neon-green"
+                className="text-lg font-semibold tracking-tight text-slate-100"
               >
                 {title}
               </h2>

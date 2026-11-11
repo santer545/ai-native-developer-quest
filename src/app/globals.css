@@ -2,6 +2,105 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+  Theme tokens
+  ------------
+  Two recruiter-facing themes are available and switchable in the header:
+    - [data-theme="warm"]   → "Warm premium dark" (default)
+    - [data-theme="bright"] → "Bright & friendly"
+  The optional engineer console is pinned to its own dark terminal theme via
+  [data-theme="console"] regardless of the app theme.
+
+  Values are space-separated RGB channels so Tailwind can apply opacity
+  modifiers (e.g. `border-white/10`).
+*/
+
+:root,
+[data-theme="warm"] {
+  color-scheme: dark;
+
+  --ink-950: 20 17 13;
+  --ink-900: 28 24 19;
+  --ink-850: 35 30 24;
+  --ink-800: 42 36 29;
+  --ink-700: 54 46 37;
+
+  --white: 255 255 255;
+  --black: 0 0 0;
+
+  --slate-100: 244 239 230;
+  --slate-200: 231 223 210;
+  --slate-300: 207 196 179;
+  --slate-400: 168 156 137;
+  --slate-500: 133 122 104;
+  --slate-600: 103 94 79;
+
+  --neon-green: 217 164 65;
+  --neon-cyan: 95 179 163;
+  --neon-amber: 224 145 63;
+  --neon-red: 217 115 106;
+
+  --glow: rgb(217 164 65 / 0.45);
+  --panel-shadow: 0 24px 70px -40px rgb(0 0 0 / 0.9);
+}
+
+[data-theme="bright"] {
+  color-scheme: light;
+
+  --ink-950: 246 247 251;
+  --ink-900: 255 255 255;
+  --ink-850: 241 242 248;
+  --ink-800: 233 235 243;
+  --ink-700: 223 226 236;
+
+  /* Flipped so `border-white/10` / `bg-white/5` become subtle ink dividers. */
+  --white: 15 23 42;
+  --black: 0 0 0;
+
+  --slate-100: 27 33 48;
+  --slate-200: 43 51 70;
+  --slate-300: 63 73 96;
+  --slate-400: 91 101 120;
+  --slate-500: 114 124 144;
+  --slate-600: 152 161 179;
+
+  --neon-green: 79 110 247;
+  --neon-cyan: 14 165 165;
+  --neon-amber: 217 119 6;
+  --neon-red: 220 38 38;
+
+  --glow: rgb(79 110 247 / 0.3);
+  --panel-shadow: 0 24px 60px -42px rgb(15 23 42 / 0.32);
+}
+
+[data-theme="console"] {
+  color-scheme: dark;
+
+  --ink-950: 5 7 10;
+  --ink-900: 8 12 18;
+  --ink-850: 10 16 24;
+  --ink-800: 13 20 29;
+  --ink-700: 19 29 41;
+
+  --white: 255 255 255;
+  --black: 0 0 0;
+
+  --slate-100: 241 245 249;
+  --slate-200: 226 232 240;
+  --slate-300: 203 213 225;
+  --slate-400: 148 163 184;
+  --slate-500: 100 116 139;
+  --slate-600: 71 85 105;
+
+  --neon-green: 124 255 107;
+  --neon-cyan: 57 213 255;
+  --neon-amber: 255 200 87;
+  --neon-red: 255 92 122;
+
+  --glow: rgb(124 255 107 / 0.45);
+  --panel-shadow: 0 24px 70px -36px rgb(0 0 0 / 0.95);
+}
+
 :root {
   --font-sans:
     "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
@@ -9,7 +108,6 @@
   --font-mono:
     "JetBrains Mono", "Cascadia Code", "SFMono-Regular", Menlo, Consolas,
     monospace;
-  color-scheme: dark;
 }
 
 @layer base {
@@ -22,7 +120,7 @@
   }
 
   ::selection {
-    @apply bg-neon-green/30 text-white;
+    @apply bg-neon-green/30 text-slate-100;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -47,7 +145,7 @@
   }
 
   .scrollbar-terminal {
-    scrollbar-color: rgb(124 255 107 / 0.25) transparent;
+    scrollbar-color: rgb(var(--neon-green) / 0.25) transparent;
     scrollbar-width: thin;
   }
 
@@ -62,12 +160,12 @@
 
   .scrollbar-terminal::-webkit-scrollbar-thumb {
     background-clip: content-box;
-    background-color: rgb(124 255 107 / 0.2);
+    background-color: rgb(var(--neon-green) / 0.2);
     border: 2px solid transparent;
     border-radius: 9999px;
   }
 
   .scrollbar-terminal::-webkit-scrollbar-thumb:hover {
-    background-color: rgb(124 255 107 / 0.35);
+    background-color: rgb(var(--neon-green) / 0.35);
   }
 }

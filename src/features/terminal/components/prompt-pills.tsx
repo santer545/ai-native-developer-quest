@@ -21,12 +21,12 @@ const PROMPTS = [
   {
     label: "start-quest",
     command: "start-quest",
-    description: "Open the quest directory.",
+    description: "Open the mission directory.",
   },
   {
-    label: "complete-quest",
-    command: "complete-quest",
-    description: "Claim XP for the active quest.",
+    label: "status",
+    command: "status",
+    description: "Show score and mission progress.",
   },
   {
     label: "hire",

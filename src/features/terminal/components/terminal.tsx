@@ -25,9 +25,9 @@ export function Terminal() {
     (state) => state.appendTerminalEntries,
   );
   const clearTerminal = useGameStore((state) => state.clearTerminal);
-  const setActiveLevel = useGameStore((state) => state.setActiveLevel);
-  const completeQuest = useGameStore((state) => state.completeQuest);
-  const activateFastPass = useGameStore((state) => state.activateFastPass);
+  const startQuest = useGameStore((state) => state.startQuest);
+  const skipToOffer = useGameStore((state) => state.skipToOffer);
+  const sessionQuestIds = useGameStore((state) => state.sessionQuestIds);
 
   const prefersReducedMotion = usePrefersReducedMotion();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -55,21 +55,21 @@ export function Terminal() {
   };
 
   const buildCommandContext = (): CommandContext => ({
-    setActiveLevel,
-    completeQuest,
+    startQuest,
     openHireDialog: () => {
       setHireDialogOpen(true);
     },
     clearTerminal,
-    activateFastPass,
+    skipToOffer,
     getSnapshot: (): CommandSnapshot => {
       const state = useGameStore.getState();
 
       return {
         score: state.score,
         completedQuests: state.completedQuests,
-        fastPassEnabled: state.fastPassEnabled,
         activeLevel: state.activeLevel,
+        view: state.view,
+        sessionQuestIds: state.sessionQuestIds,
       };
     },
   });
@@ -161,12 +161,14 @@ export function Terminal() {
 
   const handleActivateQuest = (questId: QuestId) => {
     const quest = getQuestById(questId);
+    const sessionIndex = sessionQuestIds.indexOf(questId);
+    const position = sessionIndex >= 0 ? sessionIndex + 1 : quest.level;
 
-    setActiveLevel(questId);
+    startQuest(questId);
     appendEntries([
       {
         tone: "success",
-        text: `Level ${quest.level} active — ${quest.title}. Mission Control synced.`,
+        text: `Scenario ${position} active — ${quest.title}. Mission Control synced.`,
       },
     ]);
   };
@@ -174,6 +176,7 @@ export function Terminal() {
   return (
     <section
       aria-label="Interactive terminal"
+      data-theme="console"
       className="relative flex min-h-[34rem] flex-col overflow-hidden rounded-2xl border border-white/10 bg-ink-900/75 shadow-panel backdrop-blur lg:h-full lg:min-h-0"
     >
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-white/[0.02] px-4 py-3">
@@ -183,7 +186,7 @@ export function Terminal() {
             <span className="h-2.5 w-2.5 rounded-full bg-neon-amber/70" />
             <span className="h-2.5 w-2.5 rounded-full bg-neon-green/70" />
           </div>
-          <p className="truncate font-mono text-[11px] uppercase tracking-[0.18em] text-slate-500">
+          <p className="truncate font-terminal text-[11px] uppercase tracking-[0.18em] text-slate-500">
             alex@quest<span className="text-slate-600">:</span>
             <span className="text-neon-cyan/80">~/portfolio</span>
           </p>
@@ -236,7 +239,7 @@ export function Terminal() {
           </label>
           <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-black/40 px-3 py-2 transition-shadow focus-within:border-neon-green/50 focus-within:shadow-glow-green">
             <span
-              className="shrink-0 font-mono text-xs text-neon-green"
+              className="shrink-0 font-terminal text-xs text-neon-green"
               aria-hidden="true"
             >
               alex@quest:~$
@@ -258,16 +261,16 @@ export function Terminal() {
               spellCheck={false}
               enterKeyHint="send"
               aria-describedby="terminal-hint"
-              className="min-w-0 flex-1 bg-transparent font-mono text-sm text-slate-100 caret-neon-green placeholder:text-slate-600 focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent font-terminal text-sm text-slate-100 caret-neon-green placeholder:text-slate-600 focus:outline-none"
             />
           </div>
         </form>
 
         <p
           id="terminal-hint"
-          className="mt-2 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-600"
+          className="mt-2 font-terminal text-[10px] uppercase tracking-[0.14em] text-slate-600"
         >
-          help · start-quest 1 · complete-quest · inspect --experience · hire
+          help · start-quest 1 · status · inspect --experience · hire
         </p>
       </div>
 

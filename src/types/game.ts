@@ -2,19 +2,55 @@ export const QUEST_IDS = [
   "biopharm-mcp",
   "payroll-modernization",
   "disaster-map",
+  "benefits-ssr",
+  "release-pipeline",
+  "admin-refactor",
+  "ai-standards",
+  "security-lockdown",
 ] as const;
 
 export type QuestId = (typeof QUEST_IDS)[number];
 
+export const SESSION_SIZE = 3;
+
+export type QuestStatus = "locked" | "available" | "active" | "solved";
+
+export type GameView = "play" | "offer";
+
+export type MissionStep = "scenario" | "call" | "reveal";
+
+export interface ScreeningOption {
+  readonly id: string;
+  readonly label: string;
+}
+
+export interface ScreeningReveal {
+  readonly approach: string;
+  readonly outcome: string;
+  readonly signal: string;
+}
+
+export interface ScreeningScenario {
+  readonly kind: "screening";
+  readonly scenario: string;
+  readonly ask: string;
+  readonly options: readonly ScreeningOption[];
+  readonly reveal: ScreeningReveal;
+  readonly technicalDetail: string;
+}
+
 export interface QuestDefinition {
   readonly id: QuestId;
   readonly level: number;
+  readonly hue: string;
   readonly title: string;
   readonly company: string;
   readonly role: string;
   readonly period: string;
   readonly domain: string;
-  readonly challenge: string;
+  readonly scenario: ScreeningScenario;
+  readonly proof: string;
+  readonly pitchLine: string;
   readonly achievements: readonly string[];
   readonly stack: readonly string[];
 }
@@ -68,6 +104,7 @@ export type TerminalEntryDraft = Omit<TerminalEntry, "id">;
 export interface CommandSnapshot {
   readonly score: number;
   readonly completedQuests: Readonly<Record<QuestId, boolean>>;
-  readonly fastPassEnabled: boolean;
   readonly activeLevel: QuestId | null;
+  readonly view: GameView;
+  readonly sessionQuestIds: readonly QuestId[];
 }
